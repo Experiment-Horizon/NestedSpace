@@ -1,0 +1,32 @@
+{
+"location": "njbb",
+
+"space_id": {
+	"properties":{
+      "email":"abc",
+      "name": "djbj"
+      },
+    "experiment": {
+      "id": 1234,
+      "name": "fnrjnf",
+      "tags": [],
+      "run": {
+        "id": 12323,
+        "name": "djnfjnrj",
+        "tags": [],
+        "metadata": [
+          {
+            "name": "mean_squared_error",
+            "value": 0.145,
+            "comments": "mse on test set"
+          },
+          {
+            "name": "mean_absolute_error",
+            "value": 0.215,
+            "comments": "mae on test set"
+          }
+        ]
+      }
+    }
+  }
+}

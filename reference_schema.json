@@ -1,0 +1,74 @@
+{
+  "path": "njbb",
+  "project": {
+    "id": "jhjd",
+    "name": "hsdhs",
+    "created_at": "abc",
+    "created_by": "jhdhh",
+    "description": "djbj",
+    "last_updated": "hdsg",
+    "tag": [],
+    "experiment": {
+      "id": 1234,
+      "name": "fnrjnf",
+      "created_by": "jhjfdg",
+      "tags": [],
+      "life_cycle": "gyugfsghu",
+      "created_at": "jgyusd",
+      "last_updated": "hbdh",
+      "description": "jhdhuh",
+      "run": {
+        "id": 12323,
+        "name": "djnfjnrj",
+        "tags": [],
+        "status": "completed",
+        "created_at": "jgyusd",
+        "created_by": "duygd",
+        "end_time": "hbdh",
+        "description": "jhdhuh",
+        "metadata": [
+          {
+            "name": "learning_rate",
+            "value": 0.145,
+            "comments": "mse on test set",
+            "tags": [],
+            "type": "hyperparameter",
+            "created_at": "jgyusd"
+          },
+          {
+            "name": "mean_squared_error",
+            "value": 0.145,
+            "comments": "mse on test set",
+            "tags": [],
+            "type": "metric",
+            "created_at": "jgyusd"
+          },
+          {
+            "name": "mean_absolute_error",
+            "value": 0.215,
+            "comments": "mae on test set",
+            "tags": [],
+            "type": "metric",
+            "created_at": "jgyusd"
+          }
+        ],
+        "artifacts": [
+          {
+            "name": "akshay",
+            "path": "India",
+            "type": "plot",
+            "tags": [],
+            "created_at": "jgyusd"
+          },
+          {
+            "name": "akshay",
+            "path": "India",
+            "type": "data",
+            "tags": [],
+            "created_at": "jgyusd"
+          }
+        ]
+      }
+    }
+  }
+}

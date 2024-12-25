@@ -44,25 +44,28 @@ def set_experiment(**kwargs):
     print(f"Experiment (ID: {curr_node_id}) created successfully")
 
 
-def add_tags(tags):
-    properties = manager.get_node_properties(curr_node_id)
+def add_tags(tags, id=None):
+    node_id = id if id else curr_node_id
+    properties = manager.get_node_properties(node_id)
     if isinstance(tags, list):
         properties["tags"].extend(tags)
     else:
         properties["tags"].append(tags)
 
     manager.update_node_property(
-        curr_node_id,
+        node_id,
         property_name="tags",
         property_value=properties["tags"],
     )
 
-def remove_tags(value):
-    properties = manager.get_node_properties(curr_node_id)
+
+def remove_tags(value, id=None):
+    node_id = id if id else curr_node_id
+    properties = manager.get_node_properties(node_id)
     try:
-        properties['tags'].remove(value)
+        properties["tags"].remove(value)
         manager.update_node_property(
-            curr_node_id,
+            node_id,
             property_name="tags",
             property_value=properties["tags"],
         )
@@ -70,16 +73,15 @@ def remove_tags(value):
         print("no such tag not found")
 
 
+def update_name(name, id=None):
+    node_id = id if id else curr_node_id
+    manager.update_node_property(node_id, property_name="name", property_value=name)
 
-def update_name(name):
+
+def update_description(description, id=None):
+    node_id = id if id else curr_node_id
     manager.update_node_property(
-        curr_node_id, property_name="name", property_value=name
-    )
-
-
-def update_description(description):
-    manager.update_node_property(
-        curr_node_id, property_name="description", property_value=description
+        node_id, property_name="description", property_value=description
     )
 
 

@@ -5,6 +5,6 @@ PROJECT_SCHEMA = {
         "created_by": None,
         "description": None,
         "last_updated": None,
-        "tag": [],
+        "tags": [],
         "experiment": {}
 }

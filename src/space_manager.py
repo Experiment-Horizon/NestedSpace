@@ -1,6 +1,9 @@
 import os
 import uuid
 import json
+
+from numpy.f2py.auxfuncs import isint1
+
 import src.schema as schema
 from datetime import datetime
 
@@ -8,6 +11,7 @@ from datetime import datetime
 class SpaceManager:
     def __init__(self, path="./"):
         self.path = path
+        self.cache = {}
 
 
     def create_datastore(self, data):
@@ -59,8 +63,21 @@ class SpaceManager:
                                 last_updated = SpaceManager.get_time()
                                 )
 
-        return {'project':sc}
+        self.cache = {'project':sc}
+        return self.cache['project']['id']
         #self.create_datastore(project_schema)
+
+    def update_tags(self, ctx, tags=None):
+        status = False
+        if self.cache and tags:
+            if isinstance(tags, list):
+                self.cache[ctx]['tags'].extend(tags)
+            else:
+                self.cache[ctx]['tags'].append(tags)
+            self.cache[ctx]['last_updated'] = SpaceManager.get_time()
+            status = True
+        print(json.dumps(self.cache, indent=4))
+        return status
 
 
 

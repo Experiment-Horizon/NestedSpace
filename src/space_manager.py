@@ -43,8 +43,8 @@ class SpaceManager:
 
         sc = {}
 
-        if schema_type == 'project':
-            sc = schema.PROJECT_SCHEMA
+        if schema_type in ['project', 'experiment', 'run']:
+            sc = schema.NODE_SCHEMA
 
         for key, values in kwargs.items():
             sc.update({key:values})
@@ -52,9 +52,9 @@ class SpaceManager:
         return sc
 
 
-    def create_project(self, name, created_by, description, path):
+    def create_node(self, name, created_by, description,  context):
 
-        sc = self.update_schema(schema_type='project',
+        sc = self.update_schema(schema_type=context,
                                 id=str(uuid.uuid4()),
                                 name=name,
                                 description=description,
@@ -63,7 +63,9 @@ class SpaceManager:
                                 last_updated = SpaceManager.get_time()
                                 )
 
-        self.cache = {'project':sc}
+        if context == 'project':
+            self.cache = {'project':sc}
+
         return self.cache['project']['id']
         #self.create_datastore(project_schema)
 

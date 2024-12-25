@@ -1,37 +1,15 @@
 import os
 import uuid
 import json
-
-from numpy.f2py.auxfuncs import isint1
-
 import src.schema as schema
 from datetime import datetime
+import networkx as nx
 
 
 class SpaceManager:
     def __init__(self, path="./"):
+        self.graph = None
         self.path = path
-        self.cache = {}
-
-
-    def create_datastore(self, data):
-        try:
-            # Convert data to JSON string
-            json_data = json.dumps(data)
-
-            # Create directories if they don't exist
-            os.makedirs(os.path.dirname(self.path), exist_ok=True)
-
-            # Write data to the file
-            with open(self.path, 'w') as f:
-                f.write(json_data)
-
-            print(f"Data saved successfully to {self.path}")
-
-        except json.JSONEncoder.encode:
-            raise ValueError("Error: Data cannot be encoded to JSON.")
-        except OSError as e:
-            raise OSError(f"Error saving data to {self.path}: {e}")
 
     @staticmethod
     def get_time():
@@ -39,50 +17,29 @@ class SpaceManager:
         current_time_str = now.strftime("%Y-%m-%d %H:%M:%S")
         return current_time_str
 
-    def update_schema(self, schema_type, **kwargs):
+    def create_graph(self):
+        self.graph = nx.DiGraph()
 
-        sc = {}
+    def create_node(self, context, **kwargs):
 
-        if schema_type in ['project', 'experiment', 'run']:
-            sc = schema.NODE_SCHEMA
+        node_id = str(uuid.uuid4())
+        self.graph.add_node(
+            node_id,
+            created_at=SpaceManager.get_time(),
+            last_updated=SpaceManager.get_time(),
+            **kwargs
+        )
+        return node_id
 
-        for key, values in kwargs.items():
-            sc.update({key:values})
+    def create_edge(self, prev_node_id, curr_node_id):
+        self.graph.add_edge(prev_node_id, curr_node_id)
 
-        return sc
+    def get_node_properties(self, node_id):
+        if node_id in self.graph.nodes:
+            return self.graph.nodes[node_id]
+        else:
+            return None
 
-
-    def create_node(self, name, created_by, description,  context):
-
-        sc = self.update_schema(schema_type=context,
-                                id=str(uuid.uuid4()),
-                                name=name,
-                                description=description,
-                                created_by=created_by,
-                                created_at=SpaceManager.get_time(),
-                                last_updated = SpaceManager.get_time()
-                                )
-
-        if context == 'project':
-            self.cache = {'project':sc}
-
-        return self.cache['project']['id']
-        #self.create_datastore(project_schema)
-
-    def update_tags(self, ctx, tags=None):
-        status = False
-        if self.cache and tags:
-            if isinstance(tags, list):
-                self.cache[ctx]['tags'].extend(tags)
-            else:
-                self.cache[ctx]['tags'].append(tags)
-            self.cache[ctx]['last_updated'] = SpaceManager.get_time()
-            status = True
-        print(json.dumps(self.cache, indent=4))
-        return status
-
-
-
-
-
-
+    def update_node_property(self, node_id, property_name, property_value):
+        if property_name in self.graph.nodes[node_id]:
+            self.graph.nodes[node_id][property_name] = property_value

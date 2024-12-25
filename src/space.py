@@ -57,6 +57,19 @@ def add_tags(tags):
         property_value=properties["tags"],
     )
 
+def remove_tags(value):
+    properties = manager.get_node_properties(curr_node_id)
+    try:
+        properties['tags'].remove(value)
+        manager.update_node_property(
+            curr_node_id,
+            property_name="tags",
+            property_value=properties["tags"],
+        )
+    except Exception as e:
+        print("no such tag not found")
+
+
 
 def update_name(name):
     manager.update_node_property(

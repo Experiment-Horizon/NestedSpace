@@ -5,10 +5,10 @@ manager = sm.SpaceManager()
 def set_project(**kwargs):
     if 1:
         name = kwargs['name']
-        description = kwargs.get('description', None)
-        created_by = kwargs.get('created_by', None)
+        description = kwargs.get('description', '')
+        created_by = kwargs.get('created_by', '')
         path = kwargs.get('path', None)
-        manager.create_project(name=name,
+        return manager.create_project(name=name,
                                     created_by=created_by,
                                     description=description,
                                path = path)

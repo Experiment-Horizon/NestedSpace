@@ -2,6 +2,8 @@ import os
 import uuid
 import json
 import src.schema as schema
+from datetime import datetime
+
 
 class SpaceManager:
     def __init__(self, path="./"):
@@ -27,6 +29,12 @@ class SpaceManager:
         except OSError as e:
             raise OSError(f"Error saving data to {self.path}: {e}")
 
+    @staticmethod
+    def get_time():
+        now = datetime.now()
+        current_time_str = now.strftime("%Y-%m-%d %H:%M:%S")
+        return current_time_str
+
     def update_schema(self, schema_type, **kwargs):
 
         sc = {}
@@ -42,10 +50,16 @@ class SpaceManager:
 
     def create_project(self, name, created_by, description, path):
 
-        description = '' if description is None else description
-        sc = self.update_schema(schema_type='project', name=name, description=description,
+        sc = self.update_schema(schema_type='project',
+                                id=str(uuid.uuid4()),
+                                name=name,
+                                description=description,
+                                created_by=created_by,
+                                created_at=SpaceManager.get_time(),
+                                last_updated = SpaceManager.get_time()
                                 )
-        print({'project':sc})
+
+        return {'project':sc}
         #self.create_datastore(project_schema)
 
 

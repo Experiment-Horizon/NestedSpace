@@ -40,7 +40,9 @@ class SpaceManager:
         else:
             return None
 
-    def update_node_property(self, node_id, property_name, property_value, add_new=False):
+    def update_node_property(
+        self, node_id, property_name, property_value, add_new=False
+    ):
         if not property_name in self.graph.nodes[node_id] and not add_new:
             print("Incorrect property")
         if node_id in self.graph.nodes:

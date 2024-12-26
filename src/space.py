@@ -43,6 +43,7 @@ def set_experiment(**kwargs):
     manager.create_edge(prev_node_id, curr_node_id)
     print(f"Experiment (ID: {curr_node_id}) created successfully")
 
+
 def start_run(**kwargs):
     global curr_node_id, prev_node_id
 
@@ -62,11 +63,15 @@ def start_run(**kwargs):
     manager.create_edge(prev_node_id, curr_node_id)
     print(f"Run (ID: {curr_node_id}) created successfully")
 
+
 def stop_run(id=None, **kwargs):
     node_id = id if id else curr_node_id
-    manager.update_node_property(node_id, property_name="end_time",
-                                 property_value=manager.get_time(),
-                                 add_new=True)
+    manager.update_node_property(
+        node_id,
+        property_name="end_time",
+        property_value=manager.get_time(),
+        add_new=True,
+    )
 
 
 def add_tags(tags, id=None):
@@ -109,6 +114,6 @@ def update_description(description, id=None):
         node_id, property_name="description", property_value=description
     )
 
+
 def get(id=None):
     return manager.get_node_properties(id)
-

@@ -35,17 +35,24 @@ class SpaceManager:
         self.graph.add_edge(prev_node_id, curr_node_id)
 
     def get_node_properties(self, node_id):
-        if node_id in self.graph.nodes:
+        if self.check_node_exists(node_id):
             return self.graph.nodes[node_id]
         else:
             return None
+
+    def check_node_exists(self, node_id):
+        status = False
+        if node_id in self.graph.nodes:
+            status = True
+        return status
+
 
     def update_node_property(
         self, node_id, property_name, property_value, add_new=False
     ):
         if not property_name in self.graph.nodes[node_id] and not add_new:
             print("Incorrect property")
-        if node_id in self.graph.nodes:
+        if self.check_node_exists(node_id):
             self.graph.nodes[node_id][property_name] = property_value
         else:
             print("Incorrect ID")

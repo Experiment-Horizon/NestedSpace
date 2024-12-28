@@ -48,6 +48,7 @@ class SpaceManager:
 
     def get_id_by_name(self, name, view, predecessor=None):
         ids = [node_id for node_id in view.nodes() if self.graph.nodes[node_id]["name"]==name]
+        print(ids)
         if predecessor:
             valid_nodes = [i for i in self.graph.successors(predecessor)]
             ids = list(set(ids).intersection(set(valid_nodes)))
@@ -68,6 +69,7 @@ class SpaceManager:
         if type and name:
             view = self.filter_nodes_by_type(type)
             ids = self.get_id_by_name(name, view, predecessor)
+            print(ids)
             if ids:
                 status = True
         return status

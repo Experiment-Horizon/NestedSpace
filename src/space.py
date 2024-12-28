@@ -10,6 +10,7 @@ import src.space_manager as sm
 manager = sm.SpaceManager()
 curr_node_id = None
 
+
 edges = {}
 
 def set_project(**kwargs):
@@ -295,6 +296,47 @@ def update_name(name, id=None):
     node_id =  id if id else curr_node_id
     manager.update_node_property(node_id, property_name="name", property_value=name)
 
-    
+
 def get(id=None):
     return manager.get_node_properties(id)
+
+def list_experiments(project=None):
+    '''
+    get all experiments with its properties and return it as pandas data frame
+    clue: use node properties
+    '''
+
+    #TODO: @akshay
+
+def list_runs(experiment=None):
+    '''
+    get all runs with its properties and return it as pandas data frame
+    reference: https://towardsdatascience.com/mlflow-a-primer-6dfe6be48353 (table image)
+    clue: retreive all runs and merge it with its child nodes aka - hyperparametr, metric, artifact
+           of particular experiment
+    '''
+    #TODO: @akshay
+
+def get_run(run='<name of run>', experiment='<name of exp>', filter="metric and/or hyperparam and/or artifact"):
+    '''
+        get all child nodes with its properties and return it as pandas data frame
+        reference: https://towardsdatascience.com/mlflow-a-primer-6dfe6be48353 (table image)
+        clue: retreive a particular runs  child nodes aka - hyperparametr, metric, artifact
+               of particular experiment
+               add a filter to only return a specific log like metrics or hyperparamter and/or etc
+        '''
+    # TODO: @akshay
+    
+def get_best_run(experiment=None, metric_name="abc", objective="minimize/maximize"):
+    '''
+        get best runs with its properties and return it as pandas data frame
+        reference: https://towardsdatascience.com/mlflow-a-primer-6dfe6be48353 (table image)
+        clue: retrive best runs based on one metric for an experiment or all experiments based
+         on whether experiment is given
+        '''
+    # TODO: @akshay
+
+
+
+
+

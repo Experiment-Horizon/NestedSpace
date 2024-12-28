@@ -46,6 +46,31 @@ class SpaceManager:
             status = True
         return status
 
+    def get_id_by_name(self, name, view, predecessor=None):
+        ids = [node_id for node_id in view.nodes() if self.graph.nodes[node_id]["name"]==name]
+        if predecessor:
+            valid_nodes = [i for i in self.graph.successors(predecessor)]
+            ids = list(set(ids).intersection(set(valid_nodes)))
+        return ids
+
+    def filter_nodes_by_type(self, node_type):
+        # Create a filter function for subgraph view
+        def filter_function(n):
+            return self.graph.nodes[n].get('type') == node_type
+
+        # Create a subgraph view based on the filter function
+        subgraph = nx.subgraph_view(self.graph, filter_node=filter_function)
+
+        return subgraph
+
+    def check_name_exists(self, name, predecessor=None, type=None):
+        status = False
+        if type and name:
+            view = self.filter_nodes_by_type(type)
+            ids = self.get_id_by_name(name, view, predecessor)
+            if ids:
+                status = True
+        return status
 
     def update_node_property(
         self, node_id, property_name, property_value, add_new=False

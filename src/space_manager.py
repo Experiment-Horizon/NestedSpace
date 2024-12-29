@@ -20,7 +20,7 @@ class SpaceManager:
     def create_graph(self):
         self.graph = nx.DiGraph()
 
-    def create_node(self, context, **kwargs):
+    def create_node(self, **kwargs):
 
         node_id = str(uuid.uuid4())
         self.graph.add_node(
@@ -35,6 +35,7 @@ class SpaceManager:
         self.graph.add_edge(prev_node_id, curr_node_id)
 
     def get_node_properties(self, node_id):
+
         if self.check_node_exists(node_id):
             return self.graph.nodes[node_id]
         else:
@@ -48,7 +49,6 @@ class SpaceManager:
 
     def get_id_by_name(self, name, view, predecessor=None):
         ids = [node_id for node_id in view.nodes() if self.graph.nodes[node_id]["name"]==name]
-        print(ids)
         if predecessor:
             valid_nodes = [i for i in self.graph.successors(predecessor)]
             ids = list(set(ids).intersection(set(valid_nodes)))
@@ -69,7 +69,6 @@ class SpaceManager:
         if type and name:
             view = self.filter_nodes_by_type(type)
             ids = self.get_id_by_name(name, view, predecessor)
-            print(ids)
             if ids:
                 status = True
         return status

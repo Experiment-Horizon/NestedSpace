@@ -9,24 +9,27 @@ import src.space_manager as sm
 
 manager = sm.SpaceManager()
 curr_node_id = None
-
+manager.create_graph()
 
 edges = {}
 
 def set_project(**kwargs):
     global edges
 
-    manager.create_graph()
     name = kwargs["name"]
     description = kwargs.get("description", "")
     created_by = kwargs.get("created_by", "")
     tags = kwargs.get("tags", [])
+
+    if manager.check_name_exists(name=name, type="project"):
+        raise ValueError("The name is already allocated, use a different name")
+
     curr_node_id = manager.create_node(
         name=name,
         created_by=created_by,
         description=description,
         tags=tags,
-        context="project",
+        type="project",
     )
     edges["project"] = curr_node_id
     print(f"Project {name} - (ID: {curr_node_id}) created successfully")
@@ -48,7 +51,7 @@ def set_experiment(**kwargs):
         created_by=created_by,
         description=description,
         tags=tags,
-        context="experiment",
+        type="experiment",
     )
 
     manager.create_edge(edges["project"], curr_node_id)
@@ -72,7 +75,7 @@ def start_run(**kwargs):
         created_by=created_by,
         description=description,
         tags=tags,
-        context="run",
+        type="run",
     )
 
     manager.create_edge(edges["experiment"], curr_node_id)
@@ -82,6 +85,8 @@ def start_run(**kwargs):
 
 def stop_run(name=None):
     if not name:
+        if "end_time" in manager.get_node_properties(edges["run"]).keys():
+            raise Exception("run already stopped")
         manager.update_node_property(
             edges["run"],
             property_name="end_time",
@@ -94,6 +99,8 @@ def stop_run(name=None):
         if not node_id:
             raise ValueError(f"The run : {name} not found")
         else:
+            if "end_time" in manager.get_node_properties(node_id[0]).keys():
+                raise Exception("run already stopped")
             manager.update_node_property(
                 node_id[0],
                 property_name="end_time",
@@ -126,7 +133,7 @@ def log_hyperparameter(**kwargs):
             description=description,
             tags=tags,
             value=value,
-            context="hyperparameter",
+            type="hyperparameter",
         )
 
         manager.create_edge(edges["run"], node_id)
@@ -168,7 +175,7 @@ def log_metric(**kwargs):
             description=description,
             tags=tags,
             value=value,
-            context="metric",
+            type="metric",
         )
 
         manager.create_edge(edges["run"], node_id)
@@ -218,7 +225,7 @@ def log_artifacts(**kwargs):
             description=description,
             tags=tags,
             value=value,
-            context=artifact_type,
+            type=artifact_type,
         )
 
         manager.create_edge(edges["run"], node_id)

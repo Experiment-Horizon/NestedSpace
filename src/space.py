@@ -9,7 +9,7 @@ edges = {}
 def set_project(**kwargs):
     global edges
 
-    name = kwargs["name"]
+    name = kwargs.get("name", None)
     description = kwargs.get("description", "")
     created_by = kwargs.get("created_by", "")
     tags = kwargs.get("tags", [])
@@ -33,7 +33,7 @@ def set_project(**kwargs):
 def set_experiment(**kwargs):
     global edges
 
-    name = kwargs["name"]
+    name = kwargs.get("name", None)
     description = kwargs.get("description", "")
     created_by = kwargs.get("created_by", "")
     tags = kwargs.get("tags", [])
@@ -60,7 +60,7 @@ def set_experiment(**kwargs):
 def start_run(**kwargs):
     global edges
 
-    name = kwargs["name"]
+    name = kwargs.get("name", None)
     description = kwargs.get("description", "")
     created_by = kwargs.get("created_by", "")
     tags = kwargs.get("tags", [])
@@ -114,121 +114,133 @@ def stop_run(name=None):
         print(f"run {name} stopped (ID: {node_id[0]})")
 
 
-def log_hyperparameter(**kwargs):
+def log_hyperparameters(**kwargs):
 
 
-    name = kwargs["name"]
-    run_name = kwargs["run_name"]
+    name = kwargs.get("name", None)
+    run_name = kwargs.get("run_name", None)
     description = kwargs.get("description", "")
     created_by = kwargs.get("created_by", edges["run"][-1])
     tags = kwargs.get("tags", [])
     value = kwargs.get("value")
 
-
-    if not name:
+    if not name and not isinstance(value, dict):
         raise ValueError("Please provide a name")
     if not value:
         raise ValueError("Please provide a value")
 
+    if not isinstance(value, dict):
+        value = {name: value}
+
     view = manager.filter_nodes_by_type(node_type="hyperparameter")
+    run_id = []
     if run_name:
         run_id = manager.get_id_by_name(run_name, view, predecessor=edges["experiment"])
         if not run_id:
             raise ValueError("Run - {run_name} not found")
-        else:
+
+    for name, val in value.items():
+        if run_id:
             node_id = manager.get_id_by_name(name, view, predecessor=run_id[0])
+        else:
+            node_id = manager.get_id_by_name(name, view, predecessor=edges["run"][-1])
 
-    else:
-        node_id = manager.get_id_by_name(name, view, predecessor=edges["run"][-1])
+        if not node_id:
+            node_id = manager.create_node(
+                name=name,
+                created_by=created_by,
+                description=description,
+                tags=tags,
+                value=value,
+                type="hyperparameter",
+            )
 
-    if not node_id:
-        node_id = manager.create_node(
-            name=name,
-            created_by=created_by,
-            description=description,
-            tags=tags,
-            value=value,
-            type="hyperparameter",
-        )
-
-        manager.create_edge(edges["run"], node_id)
-        print(f"'hyperparameter : {name}' logged (ID: {node_id})")
-    else:
-        property = manager.get_node_properties(node_id[0])["value"]
-        if not isinstance(property, list):
-            property = [property]
-        property.append(value)
-        manager.update_node_property(
-            node_id[0],
-            property_name=name,
-            property_value=value,
-        )
-        print(f"hyperparameter : {name} updated (ID: {node_id[0]})")
-
+            manager.create_edge(edges["run"][-1], node_id)
+            print(f"'hyperparameter : {name}' logged (ID: {node_id})")
+        else:
+            property = manager.get_node_properties(node_id[0])["value"]
+            if not isinstance(property, list):
+                property = [property]
+            property.append(value)
+            manager.update_node_property(
+                node_id[0],
+                property_name=name,
+                property_value=value,
+            )
+            print(f"hyperparameter : {name} updated (ID: {node_id[0]})")
 
 
-def log_metric(**kwargs):
+
+def log_metrics(**kwargs):
 
     # if same name update value
-    name = kwargs["name"]
-    run_name = kwargs["run_name"]
+    name = kwargs.get("name", None)
+    run_name = kwargs.get("run_name", None)
     description = kwargs.get("description", "")
     created_by = kwargs.get("created_by", edges["run"])
     tags = kwargs.get("tags", [])
+    value = kwargs.get("value")
 
-    if not name:
+    if not name and not isinstance(value, dict):
         raise ValueError("Please provide a name")
     if not value:
         raise ValueError("Please provide a value")
 
 
     view = manager.filter_nodes_by_type(node_type="metric")
+    run_id = []
     if run_name:
         run_id = manager.get_id_by_name(run_name, view, predecessor=edges["experiment"])
         if not run_id:
             raise ValueError("Run - {run_name} not found")
-        else:
+
+    if not isinstance(value, dict):
+        value = {name:value}
+
+    for name, val in value.items():
+        if run_id:
             node_id = manager.get_id_by_name(name, view, predecessor=run_id[0])
+        else:
+            node_id = manager.get_id_by_name(name, view, predecessor=edges["run"][-1])
 
-    else:
-        node_id = manager.get_id_by_name(name, view, predecessor=edges["run"][-1])
 
-    if not node_id:
-        node_id = manager.create_node(
-            name=name,
-            created_by=created_by,
-            description=description,
-            tags=tags,
-            value=value,
-            type="metric",
-        )
+        if not node_id:
+            node_id = manager.create_node(
+                name=name,
+                created_by=created_by,
+                description=description,
+                tags=tags,
+                value=value,
+                type="metric",
+            )
 
-        manager.create_edge(edges["run"], node_id)
-        print(f"'metric : {name}' logged (ID: {node_id})")
+            manager.create_edge(edges["run"][-1], node_id)
+            print(f"'metric : {name}' logged (ID: {node_id})")
 
-    else:
-        property = manager.get_node_properties(node_id)["value"]
-        if not isinstance(property, list):
-            property = [property]
-        property.append(value)
-        manager.update_node_property(
-            node_id[0],
-            property_name=name,
-            property_value=property,
-        )
-        print(f"'metric : {name}' updated (ID: {node_id[0]})")
+        else:
+            property = manager.get_node_properties(node_id)["value"]
+            if not isinstance(property, list):
+                property = [property]
+            property.append(value)
+            manager.update_node_property(
+                node_id[0],
+                property_name=name,
+                property_value=property,
+            )
+            print(f"'metric : {name}' updated (ID: {node_id[0]})")
 
 
 def log_artifacts(**kwargs):
 
     #update fn
-    name = kwargs["name"]
-    run_name = kwargs["run_name"]
+    name = kwargs.get("name", None)
+    run_name = kwargs.get("run_name", None)
     description = kwargs.get("description", "")
     created_by = kwargs.get("created_by", edges["run"])
     tags = kwargs.get("tags", [])
     artifact_type = kwargs.get("artifact_type")
     path = kwargs.get("path")
+    value = kwargs.get("value")
 
 
     if not name:
@@ -263,7 +275,7 @@ def log_artifacts(**kwargs):
             type=artifact_type,
         )
 
-        manager.create_edge(edges["run"], node_id)
+        manager.create_edge(edges["run"][-1], node_id)
         print(f"'artifact : {name}' logged (ID: {node_id})")
 
     else:

@@ -1,10 +1,3 @@
-from multiprocessing.managers import Value
-
-from networkx.algorithms.shortest_paths.unweighted import predecessor
-from networkx.classes import nodes
-from numpy.random.mtrand import operator
-from tomlkit import value
-
 import src.space_manager as sm
 
 manager = sm.SpaceManager()
@@ -21,6 +14,8 @@ def set_project(**kwargs):
     created_by = kwargs.get("created_by", "")
     tags = kwargs.get("tags", [])
 
+    if not name:
+        raise ValueError("Please provide a name for the project")
     if manager.check_name_exists(name=name, type="project"):
         raise ValueError("The name is already allocated, use a different name")
 
@@ -42,6 +37,9 @@ def set_experiment(**kwargs):
     description = kwargs.get("description", "")
     created_by = kwargs.get("created_by", "")
     tags = kwargs.get("tags", [])
+
+    if not name:
+        raise ValueError("Please provide a name for the project")
 
     if manager.check_name_exists(name=name, predecessor=edges["project"], type="experiment"):
         raise ValueError("The name is already allocated, use a different name")
@@ -67,6 +65,9 @@ def start_run(**kwargs):
     created_by = kwargs.get("created_by", "")
     tags = kwargs.get("tags", [])
 
+    if not name:
+        raise ValueError("Please provide a name for the project")
+
     if manager.check_name_exists(name=name, predecessor=edges["experiment"], type="run"):
         raise ValueError("The name is already allocated, use a different name")
 
@@ -79,23 +80,26 @@ def start_run(**kwargs):
     )
 
     manager.create_edge(edges["experiment"], curr_node_id)
-    edges["run"] = curr_node_id
+    if "run" in edges.keys():
+        edges["run"].append(curr_node_id)
+    else:
+        edges["run"] = [curr_node_id]
     print(f"Run {name} - (ID: {curr_node_id}) created successfully")
 
 
 def stop_run(name=None):
     if not name:
-        if "end_time" in manager.get_node_properties(edges["run"]).keys():
+        if "end_time" in manager.get_node_properties(edges["run"][-1]).keys():
             raise Exception("run already stopped")
         manager.update_node_property(
-            edges["run"],
+            edges["run"][-1],
             property_name="end_time",
             property_value=manager.get_time(),
             add_new=True,
         )
     else:
         view = manager.filter_nodes_by_type(node_type="run")
-        node_id = manager.get_id_by_name(name, view, predecessor=edges["run"])
+        node_id = manager.get_id_by_name(name, view, predecessor=edges["experiment"])
         if not node_id:
             raise ValueError(f"The run : {name} not found")
         else:
@@ -114,10 +118,12 @@ def log_hyperparameter(**kwargs):
 
 
     name = kwargs["name"]
+    run_name = kwargs["run_name"]
     description = kwargs.get("description", "")
-    created_by = kwargs.get("created_by", edges["run"])
+    created_by = kwargs.get("created_by", edges["run"][-1])
     tags = kwargs.get("tags", [])
     value = kwargs.get("value")
+
 
     if not name:
         raise ValueError("Please provide a name")
@@ -125,7 +131,16 @@ def log_hyperparameter(**kwargs):
         raise ValueError("Please provide a value")
 
     view = manager.filter_nodes_by_type(node_type="hyperparameter")
-    node_id = manager.get_id_by_name(name, view, predecessor=edges["run"])
+    if run_name:
+        run_id = manager.get_id_by_name(run_name, view, predecessor=edges["experiment"])
+        if not run_id:
+            raise ValueError("Run - {run_name} not found")
+        else:
+            node_id = manager.get_id_by_name(name, view, predecessor=run_id[0])
+
+    else:
+        node_id = manager.get_id_by_name(name, view, predecessor=edges["run"][-1])
+
     if not node_id:
         node_id = manager.create_node(
             name=name,
@@ -156,6 +171,7 @@ def log_metric(**kwargs):
 
     # if same name update value
     name = kwargs["name"]
+    run_name = kwargs["run_name"]
     description = kwargs.get("description", "")
     created_by = kwargs.get("created_by", edges["run"])
     tags = kwargs.get("tags", [])
@@ -167,7 +183,16 @@ def log_metric(**kwargs):
 
 
     view = manager.filter_nodes_by_type(node_type="metric")
-    node_id = manager.get_id_by_name(name, view, predecessor=edges["run"])
+    if run_name:
+        run_id = manager.get_id_by_name(run_name, view, predecessor=edges["experiment"])
+        if not run_id:
+            raise ValueError("Run - {run_name} not found")
+        else:
+            node_id = manager.get_id_by_name(name, view, predecessor=run_id[0])
+
+    else:
+        node_id = manager.get_id_by_name(name, view, predecessor=edges["run"][-1])
+
     if not node_id:
         node_id = manager.create_node(
             name=name,
@@ -198,6 +223,7 @@ def log_artifacts(**kwargs):
 
     #update fn
     name = kwargs["name"]
+    run_name = kwargs["run_name"]
     description = kwargs.get("description", "")
     created_by = kwargs.get("created_by", edges["run"])
     tags = kwargs.get("tags", [])
@@ -217,7 +243,16 @@ def log_artifacts(**kwargs):
         raise ValueError("Incorrect value for artifact type")
 
     view = manager.filter_nodes_by_type(node_type="artifact")
-    node_id = manager.get_id_by_name(name, view, predecessor=edges["run"])
+    if run_name:
+        run_id = manager.get_id_by_name(run_name, view, predecessor=edges["experiment"])
+        if not run_id:
+            raise ValueError("Run - {run_name} not found")
+        else:
+            node_id = manager.get_id_by_name(name, view, predecessor=run_id[0])
+
+    else:
+        node_id = manager.get_id_by_name(name, view, predecessor=edges["run"][-1])
+
     if not node_id:
         node_id = manager.create_node(
             name=name,

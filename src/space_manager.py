@@ -82,3 +82,11 @@ class SpaceManager:
             self.graph.nodes[node_id][property_name] = property_value
         else:
             print("Incorrect ID")
+
+    def remove(self, node_id):
+
+        successors = self.graph.successors(node_id)
+        if successors:
+            for idx in list(successors):
+                self.graph.remove_node(idx)
+        self.graph.remove_node(node_id)

@@ -1,3 +1,5 @@
+from networkx.algorithms.shortest_paths.unweighted import predecessor
+
 import src.space_manager as sm
 
 manager = sm.SpaceManager()
@@ -151,7 +153,7 @@ def log_hyperparameters(**kwargs):
                 created_by=created_by,
                 description=description,
                 tags=tags,
-                value=value,
+                value=val,
                 type="hyperparameter",
             )
 
@@ -165,7 +167,7 @@ def log_hyperparameters(**kwargs):
             manager.update_node_property(
                 node_id[0],
                 property_name=name,
-                property_value=value,
+                property_value=val,
             )
             print(f"hyperparameter : {name} updated (ID: {node_id[0]})")
 
@@ -210,7 +212,7 @@ def log_metrics(**kwargs):
                 created_by=created_by,
                 description=description,
                 tags=tags,
-                value=value,
+                value=val,
                 type="metric",
             )
 
@@ -221,7 +223,7 @@ def log_metrics(**kwargs):
             property = manager.get_node_properties(node_id)["value"]
             if not isinstance(property, list):
                 property = [property]
-            property.append(value)
+            property.append(val)
             manager.update_node_property(
                 node_id[0],
                 property_name=name,
@@ -298,8 +300,10 @@ def get_node_id(name, type):
                 predecessor = None
             elif type == "experiment":
                 predecessor = edges["project"]
+            elif type == "run":
+                predecessor = edges["experiment"]
             else:
-                predecessor = edges["run"]
+                predecessor = edges["run"][-1]
         except:
             raise ValueError(f"{type} not available")
         node_id = manager.get_id_by_name(name, view, predecessor=predecessor)
@@ -314,6 +318,7 @@ def get_node_id(name, type):
 
 def add_tags(tags, name=None, type=None):
     node_id = get_node_id(name, type) if name and type else curr_node_id
+
     properties = manager.get_node_properties(node_id)
     if isinstance(tags, list):
         properties["tags"].extend(tags)
@@ -346,10 +351,15 @@ def update_description(description, name, type):
         node_id, property_name="description", property_value=description
     )
 
-def update_name(name, id=None):
-    node_id =  id if id else curr_node_id
-    manager.update_node_property(node_id, property_name="name", property_value=name)
+def update_name(curr_name, latest_name, type):
+    node_id = get_node_id(curr_name, type) if curr_name and type else curr_node_id
+    manager.update_node_property(
+        node_id, property_name="name", property_value=latest_name
+    )
 
+def delete(name, type):
+    node_id = get_node_id(name, type) if name and type else curr_node_id
+    manager.remove(node_id)
 
 def get(id=None):
     return manager.get_node_properties(id)

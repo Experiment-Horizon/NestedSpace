@@ -90,3 +90,12 @@ class SpaceManager:
             for idx in list(successors):
                 self.graph.remove_node(idx)
         self.graph.remove_node(node_id)
+    
+    def get_edge_source(self, node_id):
+        if self.check_node_exists(node_id):
+            return list(self.graph.predecessors(node_id))
+        else:
+            print("Node does not exist.")
+            return []
+
+     

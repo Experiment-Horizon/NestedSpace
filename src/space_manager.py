@@ -48,7 +48,7 @@ class SpaceManager:
         return status
 
     def get_id_by_name(self, name, view, predecessor=None):
-        ids = [node_id for node_id in view.nodes() if self.graph.nodes[node_id]["name"]==name]
+        ids = [node_id for node_id in view.nodes() if self.graph.nodes[node_id]["name"] == name]
         if predecessor:
             valid_nodes = [i for i in self.graph.successors(predecessor)]
             ids = list(set(ids).intersection(set(valid_nodes)))
@@ -74,7 +74,7 @@ class SpaceManager:
         return status
 
     def update_node_property(
-        self, node_id, property_name, property_value, add_new=False
+            self, node_id, property_name, property_value, add_new=False
     ):
         if not property_name in self.graph.nodes[node_id] and not add_new:
             print("Incorrect property")
@@ -90,3 +90,14 @@ class SpaceManager:
             for idx in list(successors):
                 self.graph.remove_node(idx)
         self.graph.remove_node(node_id)
+
+    def get_successor(self, node_id):
+        return self.graph.successors(node_id)
+
+    def get_edge_source(self, node_id):
+        if self.check_node_exists(node_id):
+            return list(self.graph.predecessors(node_id))
+        else:
+            print("Node does not exist.")
+            return []
+

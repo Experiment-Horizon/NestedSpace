@@ -541,90 +541,74 @@ def get_hyperparameters(run_name, as_dataframe = False):
 
 def get_best_run(experiment_name=None, metric_name="abc", objective="minimize"):
     """
-    Get the best run(s) with their properties based on a specific metric.
-    Returns the result as a pandas DataFrame.
+    Retrieve the best run(s) based on a specific metric from an experiment and return as a DataFrame.
 
-    Parameters:
-        experiment_name (str): The name of the experiment. If None, considers all experiments.
-        metric_name (str): The metric to base the evaluation on.
+    Args:
+        experiment_name (str): The name of the experiment to filter runs.
+        metric_name (str): The metric to evaluate for determining the best run.
         objective (str): Either 'minimize' or 'maximize' to define the goal for the metric.
 
     Returns:
         pd.DataFrame: A DataFrame containing details of the best run(s).
     """
-
-    best_runs = []
-
-    # Fetch the experiments
-    # replace this with get_node_id -> get experiment id by name REPLACE:TODO
-    experiment_view = manager.filter_nodes_by_type(node_type="experiment")
-    experiments = (
-        [experiment_name]
-        if experiment_name
-        else [manager.get_node_properties(e).get("name") for e in experiment_view]
-    )
-
-
-    for exp_name in experiments:
-        # Get experiment ID
-        experiment_ids = manager.get_id_by_name(exp_name, view=experiment_view)
-        if not experiment_ids:
-            print(f"Experiment '{exp_name}' not found. Skipping.")
-            continue
-
-        experiment_id = experiment_ids[0]
-
-
-        # REPLACE:TODO -> successor of experiment
-        # Get all runs for the experiment
-        run_view = manager.filter_nodes_by_type(node_type="run")
-        run_ids = manager.get_id_by_name(None, view=run_view, predecessor=experiment_id)
-
-        if not run_ids:
-            print(f"No runs found for experiment '{exp_name}'. Skipping.")
-            continue
-
-        # Track the best run for the current experiment
-        best_run_id = None
-        best_metric_value = float("inf") if objective == "minimize" else float("-inf")
-
-        for run_id in run_ids:
-            # Fetch metrics for the run
-            metric_view = manager.filter_nodes_by_type(node_type="metric")
-            metrics = [
-                (node_id, manager.get_node_properties(node_id))
-                for node_id in metric_view
-                if run_id in manager.get_edge_source(node_id)
-            ]
-
-            # Extract the value of the specified metric
-            for node_id, metric in metrics:
-
-                #get_metrics : REPLACE:TODO - use get metrics to get required metric value
-                if metric.get("name") == metric_name:
-                    metric_value = float(metric.get("value", float("nan")))
-                    if (
-                            (objective == "minimize" and metric_value < best_metric_value)
-                            or (objective == "maximize" and metric_value > best_metric_value)
-                    ):
-                        best_metric_value = metric_value
-                        best_run_id = run_id
-                    break  # Since metrics are unique per run
-
-        #REPLACE : TODO - return run details which results in best metric - call get run function from above based on run name
-        # Add the best run details for the current experiment
-        if best_run_id is not None:
-            run_properties = manager.get_node_properties(best_run_id)
-            run_properties["experiment_name"] = exp_name
-            run_properties["best_metric"] = best_metric_value
-            best_runs.append(run_properties)
-
-    # Return the results as a DataFrame
-    if not best_runs:
-        print("No suitable runs found.")
+    # Step 1: Get the experiment node ID
+    try:
+        experiment_id = get_node_id(experiment_name, type="experiment")
+    except ValueError as e:
+        print(f"Error: {e}")
         return pd.DataFrame()
 
-    return pd.DataFrame(best_runs)
+    # Step 2: Find all runs by getting successors of the experiment
+    try:
+        successor_runs = manager.get_successor(experiment_id)
+        if not successor_runs:
+            print(f"No runs found for experiment '{experiment_name}'.")
+            return pd.DataFrame()
+    except Exception as e:
+        print(f"Error fetching runs for experiment '{experiment_name}': {e}")
+        return pd.DataFrame()
 
+    # Step 3: Track the best run based on the specified metric
+    best_run = None
+    best_metric_value = float("inf") if objective == "minimize" else float("-inf")
 
+    # Step 4: Iterate through the runs and fetch metrics
+    for run_id in successor_runs:
+        try:
+            # Check if the run exists
+            if not manager.node_exists(run_id):  # Ensure the run exists
+                print(f"Run '{run_id}' does not exist, skipping.")
+                continue
 
+            # Step 5: Fetch metrics for the run
+            metrics = get_log_metrics(run_id)
+
+            # Skip if the metric is not available
+            if metric_name not in metrics:
+                print(f"Metric '{metric_name}' not found for run '{run_id}', skipping.")
+                continue
+
+            metric_value = float(metrics[metric_name])
+
+            # Step 6: Update the best run based on the metric and objective
+            if (
+                (objective == "minimize" and metric_value < best_metric_value) or
+                (objective == "maximize" and metric_value > best_metric_value)
+            ):
+                best_metric_value = metric_value
+                best_run = {
+                    "run_id": run_id,
+                    "experiment_name": experiment_name,
+                    "best_metric": best_metric_value,
+                    **manager.get_node_properties(run_id)  # Merge with run properties
+                }
+        except Exception as e:
+            print(f"Error processing metrics for run_id '{run_id}': {e}")
+            continue  # Skip to the next run if an error occurs
+
+    if not best_run:
+        print(f"No suitable runs found for experiment '{experiment_name}' with metric '{metric_name}'.")
+        return pd.DataFrame()
+
+    # Convert the best run data into a DataFrame and return
+    return pd.DataFrame([best_run])

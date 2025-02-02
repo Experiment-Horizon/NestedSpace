@@ -101,3 +101,10 @@ class SpaceManager:
             print("Node does not exist.")
             return []
 
+    def get_name_by_id(self, node_id):
+        if self.check_node_exists(node_id):
+            return self.graph.nodes[node_id]["name"]
+        else:
+            print("Node does not exist.")
+            return []
+

@@ -2,26 +2,127 @@ import ipywidgets as widgets
 from IPython.display import display, clear_output, HTML
 import pandas as pd
 
+
+class ExperimentView:
+    def __init__(self, experiments):
+        self.experiments = experiments
+        self.df = None
+        self.numerical_columns = []
+
+        # Create UI elements
+        self.experiment_selector = widgets.Dropdown(options=list(self.experiments.keys()),
+                                                    )
+        self.experiment_selector_view = widgets.HBox(
+            [widgets.HTML(value="<b>Select Experiment:</b>"), self.experiment_selector],
+            layout=widgets.Layout(margin='10px 0 15px 0'), )
+        self.title_label = widgets.HTML()
+        self.description_label = widgets.HTML()
+        self.tags_label = widgets.HTML()
+        self.created_by_label = widgets.HTML()
+        self.output_table = widgets.Output()
+
+        # Initialize display
+        self.sort_by_dropdown = widgets.Dropdown(description='Sort by:',
+                                                 layout=widgets.Layout(margin='20px 0 5px 0', width="350px"))
+        self.sort_order_dropdown = widgets.Dropdown(options=['Ascending', 'Descending'], description='Order:',
+                                                    layout=widgets.Layout(margin='20px 0 5px 0', width="200px"))
+        self.sort_menu = widgets.Box([self.sort_by_dropdown, self.sort_order_dropdown],
+                                     layout=widgets.Layout(display='flex', justify_content='flex-end'))
+
+        # Link events to functions
+        self.experiment_selector.observe(self.on_experiment_change, names='value')
+        self.sort_by_dropdown.observe(self.sort_table, names='value')
+        self.sort_order_dropdown.observe(self.sort_table, names='value')
+
+        # Initial display of experiment data
+        self.update_display(self.experiment_selector.value)
+
+        # Display the UI components
+        display(self.experiment_selector_view)
+        display(self.title_label)
+        display(self.description_label)
+        display(self.tags_label)
+        display(self.created_by_label)
+        display(self.sort_menu)
+        display(self.output_table)
+
+    def create_dataframe(self, selected_experiment):
+        """Convert run data into a pandas DataFrame."""
+        runs = self.experiments[selected_experiment]['runs']
+
+        # Extracting data for DataFrame creation
+        data = []
+        for run in runs:
+            run_data = {
+                'Run ID': run['run_id'],
+                'Status': run['status']
+            }
+
+            # Dynamically adding hyperparameters and metrics
+            for key, value in run['hyperparameters'].items():
+                run_data[f'Hyperparameter: {key}'] = value
+
+            for key, value in run['metrics'].items():
+                run_data[f'Metric: {key}'] = value
+
+            data.append(run_data)
+
+        self.df = pd.DataFrame(data)
+
+        # Detecting numerical columns
+        self.numerical_columns = self.df.select_dtypes(include=['number']).columns.tolist()
+
+    def display_sorted_table(self, df):
+        """Display the sorted DataFrame as an HTML table."""
+        table_html = df.to_html(index=False, border=1)
+        with self.output_table:
+            clear_output()
+            display(HTML(table_html))
+
+    def update_display(self, selected_experiment):
+        """Update the display based on selected experiment."""
+        experiment_data = self.experiments[selected_experiment]
+
+        self.title_label.value = f"<span style='font-size: 1.2em;'><b>Title:</b></span> <span style='font-size: 1em;'>{experiment_data['title']}</span>"
+        self.description_label.value = f"<span style='font-size: 1.2em;'><b>Description:</b></span> <span style='font-size: 1em;'>{experiment_data['description']}</span>"
+        self.tags_label.value = f"<span style='font-size: 1.2em;'><b>Tags:</b></span> <span style='font-size: 1em;'>{', '.join(experiment_data['tags'])}</span>"
+        self.created_by_label.value = f"<span style='font-size: 1.2em;'><b>Created By:</b></span> <span style='font-size: 1em;'>{experiment_data['created_by']}</span>"
+
+        self.create_dataframe(selected_experiment)
+
+        # Update sort options based on new DataFrame
+        self.sort_by_dropdown.options = self.numerical_columns
+
+        # Display the initial sorted table
+        if len(self.numerical_columns) > 0:
+            self.display_sorted_table(self.df)
+
+    def on_experiment_change(self, change):
+        """Handle change in experiment selection."""
+        self.update_display(change['new'])
+
+    def sort_table(self, change):
+        """Sort and display the table based on selected criteria."""
+        if not self.df.empty:
+            sorted_df = self.df.sort_values(by=self.sort_by_dropdown.value,
+                                            ascending=self.sort_order_dropdown.value == 'Ascending')
+            self.display_sorted_table(sorted_df)
+
+
 # Sample data for experiments with hyperparameters and metrics
-experiments = {
+experiments_data = {
     "Experiment 1": {
-        "description": "This is the first experiment.",
+        "description": "Lung cancer detection involves using advanced diagnostic techniques and tools to identify the presence of cancerous cells in the lungs at an early stage. This process typically integrates medical imaging technologies like X-rays, CT scans, and PET scans with emerging computational tools, such as artificial intelligence (AI) and machine learning algorithms. These technologies can analyze medical images to identify abnormalities, such as nodules or tumors, that may indicate cancer.",
         "title": "First Experiment",
         "tags": ["tag1", "tag2"],
         "created_by": "User A",
         "runs": [
-            {
-                "run_id": 1,
-                "status": "completed",
-                "hyperparameters": {"learning_rate": 0.01, "batch_size": 32},
-                "metrics": {"accuracy": 0.95, "loss": 0.05, "mse": 111},
-            },
-            {
-                "run_id": 2,
-                "status": "failed",
-                "hyperparameters": {"learning_rate": 0.001, "batch_size": 64},
-                "metrics": {"accuracy": 0.80, "loss": 0.2, "mse": 123},
-            },
+            {"run_id": "1", "status": "completed",
+             "hyperparameters": {"learning_rate": 0.01, "batch_size": 32, "alpha": 0.02, "epoch": 64},
+             "metrics": {"accuracy": 0.95, "loss": 0.05}},
+            {"run_id": "2", "status": "failed",
+             "hyperparameters": {"learning_rate": 0.001, "batch_size": 64, "alpha": 0.03, "epoch": 128},
+             "metrics": {"accuracy": 0.80, "loss": 0.2}},
         ]
     },
     "Experiment 2": {
@@ -30,177 +131,134 @@ experiments = {
         "tags": ["tag3", "tag4"],
         "created_by": "User B",
         "runs": [
-            {
-                "run_id": 3,
-                "status": "in progress",
-                "hyperparameters": {"learning_rate": 0.1, "batch_size": 128},
-                "metrics": {"accuracy": 0.90, "loss": 0.1, "mse": 223},
-            },
-            {
-                "run_id": 4,
-                "status": "completed",
-                "hyperparameters": {"learning_rate": 0.05, "batch_size": 16},
-                "metrics": {"accuracy": 0.98, "loss": 0.02, "mse": 123},
-            },
+            {"run_id": "3", "status": "in progress", "hyperparameters": {"learning_rate": 0.1, "batch_size": 128},
+             "metrics": {"accuracy": 0.90, "loss": 0.1}},
+            {"run_id": "4", "status": "completed", "hyperparameters": {"learning_rate": 0.05, "batch_size": 16},
+             "metrics": {"accuracy": 0.98, "loss": 0.02}},
         ]
     }
 }
 
-# Create a dropdown for selecting experiments
-experiment_selector = widgets.Dropdown(
-    options=list(experiments.keys()),
-    description='Select Experiment:',
-)
+# Create an instance of ExperimentManager with the sample data
+experiment_manager = ExperimentView(experiments_data)
 
-# Create labels for displaying information with HTML formatting and increased font size
-title_label = widgets.HTML()
-description_label = widgets.HTML()
-tags_label = widgets.HTML()
-created_by_label = widgets.HTML()
-
-# Create output area for table
-output_table = widgets.Output()
-
-# Create sorting dropdowns for each column
-sort_by_dropdown = widgets.Dropdown(
-    options=['Learning Rate', 'Batch Size', 'Accuracy', 'Loss'],
-    description='Sort by:',
-    disabled=False,
-)
-
-sort_order_dropdown = widgets.Dropdown(
-    options=['Ascending', 'Descending'],
-    description='Order:',
-    disabled=False,
-)
+import ipywidgets as widgets
+from IPython.display import display, clear_output, HTML
+import pandas as pd
 
 
-def sort_table(change):
-    selected_experiment = experiment_selector.value
-    experiment_data = experiments[selected_experiment]
+class RunView:
+    def __init__(self, runs_data):
+        self.runs_data = runs_data
+        self.selected_run = None
 
-    # Convert run data into a pandas DataFrame for easy sorting
-    runs = experiment_data['runs']
-    data = []
+        # Create UI elements
+        self.run_selector = widgets.Dropdown(options=list(self.runs_data.keys()), description='Select Run:')
 
-    for run in runs:
-        row = {
-            'Run ID': run['run_id'],
-            'Status': run['status'],
-            'Learning Rate': run['hyperparameters']['learning_rate'],
-            'Batch Size': run['hyperparameters']['batch_size'],
-            'Accuracy': run['metrics']['accuracy'],
-            'Loss': run['metrics']['loss'],
-            'mse': run['metrics']['mse'],
-        }
-        data.append(row)
+        self.title_label = widgets.HTML()
+        self.description_label = widgets.HTML(value="<b>Description:</b>")
+        self.tags_label = widgets.HTML(value="<b>Tags:</b>")
+        self.hyperparameters_label = widgets.HTML(value="<b>Hyperparameters:</b>")
+        self.hyperparameters_table = widgets.Output()
+        self.metrics_label = widgets.HTML(value="<b>Metrics:</b>")
+        self.metrics_table = widgets.Output()
+        self.artifacts_label = widgets.HTML(value="<b>Artifacts:</b>")
+        self.artifacts_display = widgets.Output()
 
-    df = pd.DataFrame(data)
+        # Link event to function
+        self.run_selector.observe(self.on_run_change, names='value')
 
-    sort_column = sort_by_dropdown.value
-    sort_order = sort_order_dropdown.value
-    ascending = sort_order == 'Ascending'
+        # Display the UI components
+        display(self.run_selector)
+        display(self.title_label)
+        display(self.description_label)
+        display(self.tags_label)
+        display(self.hyperparameters_label)
+        display(self.hyperparameters_table)
+        display(self.metrics_label)
+        display(self.metrics_table)
+        display(self.artifacts_label)
+        display(self.artifacts_display)
 
-    # Map dropdown labels to DataFrame column names
-    column_mapping = {
-        'Learning Rate': 'Learning Rate',
-        'Batch Size': 'Batch Size',
-        'Accuracy': 'Accuracy',
-        'Loss': 'Loss',
-        "MSE": 'mse'
+    def on_run_change(self, change):
+        """Handle change in run selection."""
+        selected_run_id = change['new']
+
+        if not selected_run_id:
+            return
+
+        # Get the selected run data
+        run_data = self.runs_data[selected_run_id]
+
+        # Update title and description labels
+        self.title_label.value = f"<b>Run ID:</b> {run_data['run_id']} (Status: {run_data['status']})"
+        self.description_label.value += f" {run_data.get('description', 'No description available.')}"
+
+        # Update tags label
+        self.tags_label.value = f"<b>Tags:</b> {', '.join(run_data.get('tags', []))}"
+
+        # Display hyperparameters table
+        hyperparameters_df = pd.DataFrame(run_data['hyperparameters'].items(), columns=['Hyperparameter', 'Value'])
+
+        with self.hyperparameters_table:
+            clear_output(wait=True)
+            display(HTML(hyperparameters_df.to_html(index=False)))
+
+        # Display metrics table
+        metrics_df = pd.DataFrame(run_data['metrics'].items(), columns=['Metric', 'Value'])
+
+        with self.metrics_table:
+            clear_output(wait=True)
+            display(HTML(metrics_df.to_html(index=False)))
+
+        # Display artifacts (assuming they are image URLs)
+        with self.artifacts_display:
+            clear_output(wait=True)
+            if 'artifacts' in run_data and run_data['artifacts']:
+                for artifact in run_data['artifacts']:
+                    display(HTML(f"<img src='{artifact}' style='width: 200px; height: auto; margin: 5px;'>"))
+            else:
+                print("No artifacts available for this run.")
+
+
+# Sample data for runs with titles, descriptions, tags, hyperparameters, metrics, and artifacts
+runs_data = {
+    "Run 1": {
+        "run_id": "1",
+        "status": "completed",
+        "description": "This run focuses on optimizing the model for lung cancer detection.",
+        "tags": ["lung cancer", "AI", "detection"],
+        "hyperparameters": {"learning_rate": 0.01, "batch_size": 32},
+        "metrics": {"accuracy": 0.95, "loss": 0.05},
+        "artifacts": ["https://example.com/image1.png", "https://example.com/image2.png"]
+    },
+    "Run 2": {
+        "run_id": "2",
+        "status": "failed",
+        "description": "This run encountered issues with data preprocessing.",
+        "tags": ["lung cancer", "data issue"],
+        "hyperparameters": {"learning_rate": 0.001, "batch_size": 64},
+        "metrics": {"accuracy": 0.80, "loss": 0.2},
+        "artifacts": ["https://example.com/image3.png"]
+    },
+    "Run 3": {
+        "run_id": "3",
+        "status": "in progress",
+        "description": "Ongoing work to improve model accuracy.",
+        "tags": ["lung cancer", "in progress"],
+        "hyperparameters": {"learning_rate": 0.1, "batch_size": 128},
+        "metrics": {"accuracy": 0.90, "loss": 0.1},
+    },
+    "Run 4": {
+        "run_id": "4",
+        "status": "completed",
+        "description": "Final run with optimized parameters.",
+        "tags": ["lung cancer", "final"],
+        "hyperparameters": {"learning_rate": 0.05, "batch_size": 16},
+        "metrics": {"accuracy": 0.98, "loss": 0.02},
     }
+}
 
-    # Sort the DataFrame based on the selected column and order
-    sorted_df = df.sort_values(by=column_mapping[sort_column], ascending=ascending)
+# Create an instance of RunView with the sample data
+run_view_manager = RunView(runs_data)
 
-    # Display sorted table
-    with output_table:
-        clear_output()
-        display_sorted_table(sorted_df)
-
-
-## Function to display sorted table
-def display_sorted_table(df):
-    # Create an HTML table from the pandas DataFrame
-    table_html = """
-    <h3>Runs Table:</h3>
-    <table style='width:100%; border-collapse: collapse;'>
-        <tr>
-            <th style='border: 1px solid black; padding: 8px; white-space: nowrap;'>Run ID</th>
-            <th style='border: 1px solid black; padding: 8px; white-space: nowrap;'>Status</th>
-            <th style='border: 1px solid black; padding: 8px; white-space: nowrap;'>Learning Rate</th>
-            <th style='border: 1px solid black; padding: 8px; white-space: nowrap;'>Batch Size</th>
-            <th style='border: 1px solid black; padding: 8px; white-space: nowrap;'>Accuracy</th>
-            <th style='border: 1px solid black; padding: 8px; white-space: nowrap;'>Loss</th>
-            <th style='border: 1px solid black; padding: 8px; white-space: nowrap;'>MSE</th>
-        </tr>
-    """
-
-    # Add rows
-    for _, row in df.iterrows():
-        table_html += f"""
-        <tr>
-            <td style='border: 1px solid black; padding: 8px; white-space: nowrap;'>{row['Run ID']}</td>
-            <td style='border: 1px solid black; padding: 8px; white-space: nowrap;'>{row['Status']}</td>
-            <td style='border: 1px solid black; padding: 8px; white-space: nowrap;'>{row['Learning Rate']}</td>
-            <td style='border: 1px solid black; padding: 8px; white-space: nowrap;'>{row['Batch Size']}</td>
-            <td style='border: 1px solid black; padding: 8px; white-space: nowrap;'>{row['Accuracy']}</td>
-            <td style='border: 1px solid black; padding: 8px; white-space: nowrap;'>{row['Loss']}</td>
-            <td style='border: 1px solid black; padding: 8px; white-space: nowrap;'>{row['mse']}</td>
-        </tr>
-        """
-
-    table_html += "</table>"
-    display(HTML(table_html))
-
-
-# Function to update the display when experiment changes
-def on_experiment_change(change):
-    selected_experiment = change['new']
-    experiment_data = experiments[selected_experiment]
-
-    # Update labels with experiment data using HTML for bold text and increased font size
-    title_label.value = f"<span style='font-size: 2em;'><b>Title:</b> {experiment_data['title']}</span>"
-    description_label.value = f"<span style='font-size: 2em;'><b>Description:</b> {experiment_data['description']}</span>"
-    tags_label.value = f"<span style='font-size: 2em;'><b>Tags:</b> {', '.join(experiment_data['tags'])}</span>"
-    created_by_label.value = f"<span style='font-size: 2em;'><b>Created By:</b> {experiment_data['created_by']}</span>"
-
-    with output_table:
-        clear_output()
-
-        # Convert run data into a pandas DataFrame for easy sorting
-        runs = experiment_data['runs']
-        data = []
-
-        for run in runs:
-            row = {
-                'Run ID': run['run_id'],
-                'Status': run['status'],
-                'Learning Rate': run['hyperparameters']['learning_rate'],
-                'Batch Size': run['hyperparameters']['batch_size'],
-                'Accuracy': run['metrics']['accuracy'],
-                'Loss': run['metrics']['loss'],
-                'mse': run['metrics']['mse'],
-            }
-            data.append(row)
-
-        df = pd.DataFrame(data)
-
-        # Initial display of the sorted table (sorted by 'Learning Rate' in ascending order by default)
-        display_sorted_table(df)
-
-
-# Link the dropdown to the function
-experiment_selector.observe(on_experiment_change, names='value')
-
-# Display the widgets (sorting dropdowns, experiment selector, labels, and table)
-display(sort_by_dropdown, sort_order_dropdown)
-display(experiment_selector)
-display(title_label)
-display(description_label)
-display(tags_label)
-display(created_by_label)
-display(output_table)
-
-# Initial display of experiment data (trigger change manually to populate)
-on_experiment_change({'new': experiment_selector.value})

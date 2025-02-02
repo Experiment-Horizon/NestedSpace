@@ -362,7 +362,7 @@ def get(id=None):
     return manager.get_node_properties(id)
 
 
-def list_experiments(project=None):
+def list_experiments(project=None, as_dataframe=False):
     '''
     Get all experiments with their properties and return as a pandas DataFrame.
     '''
@@ -379,10 +379,13 @@ def list_experiments(project=None):
             properties = manager.get_node_properties(node_id)
             experiments.append(properties)
 
-    return pd.DataFrame(experiments)
+    if as_dataframe:
+        return pd.DataFrame(experiments)
+    else:
+        return experiments
 
 
-def list_runs(experiment_name=None):
+def list_runs(experiment_name=None, as_dataframe=False):
     """Lists all runs for the specified experiment and returns a DataFrame."""
 
     # Get all nodes of type "experiment" to check available experiment names
@@ -429,16 +432,18 @@ def list_runs(experiment_name=None):
     # Ensure `runs` list is non-empty and contains dictionaries
     if not runs:
         print("No runs found for the experiment.")
-        return pd.DataFrame()
+        return runs
 
-    # Return the collected runs as a pandas DataFrame
-    df = pd.DataFrame(runs)
+    if as_dataframe:
+        # Return the collected runs as a pandas DataFrame
+        df = pd.DataFrame(runs)
+        return df
+    else:
+        return runs
 
-    # Return DataFrame
-    return df
 
 
-def get_run(experiment_name=None, log_type=None):
+def get_runs(experiment_name=None):
     """Retrieve all child nodes (hyperparameters, metrics, artifacts) for a particular run and return as a DataFrame.
 
     Args:
@@ -465,62 +470,53 @@ def get_run(experiment_name=None, log_type=None):
     experiment_id = get_node_id(experiment_name, type="experiment") if experiment_name else edges["experiment"]
 
     # Retrieve all runs linked to this experiment
-    view = manager.filter_nodes_by_type(node_type="run")
-    runs = []
+    run_ids = manager.get_successor(experiment_id)
+    tracked_data = {}
 
-    for node_id in view:
-        # Check if the run belongs to the given experiment
-        if manager.get_edge_source(node_id)[0] == experiment_id:
-            properties = manager.get_node_properties(node_id)
-            run_data = {
-                "run_id": node_id,
-                "hyperparameters": [],
-                "metrics": [],
-                "artifacts": []
-            }
+    for run_id in run_ids:
+        run_name = manager.get_name_by_id(run_id)
+        tracked_data[run_name] = {}
+        tracked_data[run_name]["hyperparameters"] = get_hyperparameters(run_name)
+        tracked_data[run_name]["metrics"] = get_metrics(run_name)
+        tracked_data[run_name]["artifacts"] = get_artifacts(run_name)
 
-            # Expand run_properties dictionary into individual columns
-            for key, value in properties.items():
-                run_data[key] = value
-
-            # Retrieve child nodes (hyperparameters, metrics, artifacts) for this run
-            if log_type is None or log_type == "hyperparameter":
-                hyperparameters = get_hyperparameters(run_id=node_id)
-                run_data["hyperparameters"] = hyperparameters
-            if log_type is None or log_type == "metric":
-                metrics = get_log_metrics(run_id=node_id)
-                run_data["metrics"] = metrics
-            if log_type is None or log_type == "artifact":
-                artifacts = get_log_artifacts(run_id=node_id)
-                run_data["artifacts"] = artifacts
-
-            runs.append(run_data)
-
-    # Convert the runs list into a DataFrame
-    runs_df = pd.DataFrame(runs)
-    return runs_df
+    return tracked_data
 
 
-def get_log_artifacts(run_id):
+
+def get_artifacts(run_name, as_dataframe=False):
     """Retrieve all logged artifacts for the specified run."""
-    view = manager.filter_nodes_by_type(node_type="artifact")
+    run_id = get_node_id(run_name, type="run")
+    successor_nodes = manager.get_successor(run_id)
+    print(successor_nodes)
     artifacts = []
-    for node_id in view:
-        if manager.get_edge_source(node_id)[0] == run_id:
-            properties = manager.get_node_properties(node_id)
+    for node_id in successor_nodes:
+        properties = manager.get_node_properties(node_id)
+        if properties["type"] in ['plot', 'model', 'data']:
             artifacts.append(properties)
-    return artifacts
+
+    if as_dataframe:
+        return pd.DataFrame(artifacts)
+    else:
+        return artifacts
 
 
-def get_metrics(run_id):
+
+def get_metrics(run_name, as_dataframe=False):
     """Retrieve all logged metrics for the specified run."""
-    view = manager.filter_nodes_by_type(node_type="metric")
+    run_id = get_node_id(run_name, type="run")
+    successor_nodes = manager.get_successor(run_id)
     metrics = []
-    for node_id in view:
-        if manager.get_edge_source(node_id)[0] == run_id:
-            properties = manager.get_node_properties(node_id)
+    for node_id in successor_nodes:
+        properties = manager.get_node_properties(node_id)
+        if properties["type"] == "metric":
             metrics.append(properties)
-    return metrics
+
+    if as_dataframe:
+        return pd.DataFrame(metrics)
+    else:
+        return metrics
+
 
 
 def get_hyperparameters(run_name, as_dataframe = False):
@@ -539,7 +535,7 @@ def get_hyperparameters(run_name, as_dataframe = False):
         return hyperparameters
 
 
-def get_best_run(experiment_name=None, metric_name="abc", objective="minimize"):
+def get_best_run(experiment_name=None, metric_name="mae", objective="minimize"):
     """
     Retrieve the best run(s) based on a specific metric from an experiment and return as a DataFrame.
 
@@ -552,20 +548,15 @@ def get_best_run(experiment_name=None, metric_name="abc", objective="minimize"):
         pd.DataFrame: A DataFrame containing details of the best run(s).
     """
     # Step 1: Get the experiment node ID
-    try:
-        experiment_id = get_node_id(experiment_name, type="experiment")
-    except ValueError as e:
-        print(f"Error: {e}")
+    experiment_id = get_node_id(experiment_name, type="experiment")
+    if not experiment_id:
+        print(f"Error: Experiment '{experiment_name}' not found.")
         return pd.DataFrame()
 
-    # Step 2: Find all runs by getting successors of the experiment
-    try:
-        successor_runs = manager.get_successor(experiment_id)
-        if not successor_runs:
-            print(f"No runs found for experiment '{experiment_name}'.")
-            return pd.DataFrame()
-    except Exception as e:
-        print(f"Error fetching runs for experiment '{experiment_name}': {e}")
+    # Step 2: Find all runs associated with the experiment
+    successor_runs = manager.get_successor(experiment_id)
+    if not successor_runs:
+        print(f"No runs found for experiment '{experiment_name}'.")
         return pd.DataFrame()
 
     # Step 3: Track the best run based on the specified metric
@@ -574,37 +565,29 @@ def get_best_run(experiment_name=None, metric_name="abc", objective="minimize"):
 
     # Step 4: Iterate through the runs and fetch metrics
     for run_id in successor_runs:
-        try:
-            # Check if the run exists
-            if not manager.node_exists(run_id):  # Ensure the run exists
-                print(f"Run '{run_id}' does not exist, skipping.")
-                continue
+        name = manager.get_name_by_id(run_id)
+        metrics = get_metrics(name)
+        if not metrics:
+            print(f"No metrics found for run '{run_id}', skipping.")
+            continue
+        print(run_id,metrics)
+        for metric in metrics:
+            if metric_name in list(metric.values()):
+                metric_value = float(metric['value'])
+        print(metric_name)
 
-            # Step 5: Fetch metrics for the run
-            metrics = get_log_metrics(run_id)
-
-            # Skip if the metric is not available
-            if metric_name not in metrics:
-                print(f"Metric '{metric_name}' not found for run '{run_id}', skipping.")
-                continue
-
-            metric_value = float(metrics[metric_name])
-
-            # Step 6: Update the best run based on the metric and objective
-            if (
-                (objective == "minimize" and metric_value < best_metric_value) or
-                (objective == "maximize" and metric_value > best_metric_value)
-            ):
-                best_metric_value = metric_value
-                best_run = {
-                    "run_id": run_id,
-                    "experiment_name": experiment_name,
-                    "best_metric": best_metric_value,
-                    **manager.get_node_properties(run_id)  # Merge with run properties
-                }
-        except Exception as e:
-            print(f"Error processing metrics for run_id '{run_id}': {e}")
-            continue  # Skip to the next run if an error occurs
+        # Step 5: Update the best run based on the metric and objective
+        if (
+            (objective == "minimize" and metric_value < best_metric_value) or
+            (objective == "maximize" and metric_value > best_metric_value)
+        ):
+            best_metric_value = metric_value
+            best_run = {
+                "run_id": run_id,
+                "experiment_name": experiment_name,
+                "best_metric": best_metric_value,
+                **manager.get_node_properties(run_id)  # Merge with run properties
+            }
 
     if not best_run:
         print(f"No suitable runs found for experiment '{experiment_name}' with metric '{metric_name}'.")
@@ -612,3 +595,12 @@ def get_best_run(experiment_name=None, metric_name="abc", objective="minimize"):
 
     # Convert the best run data into a DataFrame and return
     return pd.DataFrame([best_run])
+
+# def get_tracked_data():
+#     experiments_info = list_experiments()
+#     tracked_data = {}
+#     for info in experiments_info:
+#         exp_name = info["name"]
+#         runs = list_runs(experiment_name = 'experiment 1')
+#         tracked_data[exp_name] = runs
+#     print(tracked_data)

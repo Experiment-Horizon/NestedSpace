@@ -54,8 +54,10 @@ class ExperimentView:
         data = []
         for run in runs:
             run_data = {
-                'Run ID': run['run_id'],
-                'Status': run['status']
+                "Run Name": run["name"],
+                "Created At": run["created_at"],
+                "Last Updated": run["last_updated"],
+                "Created By": run["created_by"]
             }
 
             # Dynamically adding hyperparameters and metrics
@@ -83,7 +85,7 @@ class ExperimentView:
         """Update the display based on selected experiment."""
         experiment_data = self.experiments[selected_experiment]
 
-        self.title_label.value = f"<span style='font-size: 1.2em;'><b>Title:</b></span> <span style='font-size: 1em;'>{experiment_data['title']}</span>"
+        self.title_label.value = f"<span style='font-size: 1.2em;'><b>Title:</b></span> <span style='font-size: 1em;'>{experiment_data['name']}</span>"
         self.description_label.value = f"<span style='font-size: 1.2em;'><b>Description:</b></span> <span style='font-size: 1em;'>{experiment_data['description']}</span>"
         self.tags_label.value = f"<span style='font-size: 1.2em;'><b>Tags:</b></span> <span style='font-size: 1em;'>{', '.join(experiment_data['tags'])}</span>"
         self.created_by_label.value = f"<span style='font-size: 1.2em;'><b>Created By:</b></span> <span style='font-size: 1em;'>{experiment_data['created_by']}</span>"
@@ -140,12 +142,11 @@ experiments_data = {
 }
 
 # Create an instance of ExperimentManager with the sample data
-experiment_manager = ExperimentView(experiments_data)
+#experiment_manager = ExperimentView(experiments_data)
 
 import ipywidgets as widgets
 from IPython.display import display, clear_output, HTML
 import pandas as pd
-
 
 class RunView:
     def __init__(self, runs_data):
@@ -156,8 +157,8 @@ class RunView:
         self.run_selector = widgets.Dropdown(options=list(self.runs_data.keys()), description='Select Run:')
 
         self.title_label = widgets.HTML()
-        self.description_label = widgets.HTML(value="<b>Description:</b>")
-        self.tags_label = widgets.HTML(value="<b>Tags:</b>")
+        self.description_label = widgets.HTML()
+        self.tags_label = widgets.HTML()
         self.hyperparameters_label = widgets.HTML(value="<b>Hyperparameters:</b>")
         self.hyperparameters_table = widgets.Output()
         self.metrics_label = widgets.HTML(value="<b>Metrics:</b>")
@@ -180,6 +181,8 @@ class RunView:
         display(self.artifacts_label)
         display(self.artifacts_display)
 
+        self.display_all(list(self.runs_data.keys())[0])
+
     def on_run_change(self, change):
         """Handle change in run selection."""
         selected_run_id = change['new']
@@ -187,25 +190,29 @@ class RunView:
         if not selected_run_id:
             return
 
+        display_all(selected_run_id)
+
+    def display_all(self, selected_run_id):
         # Get the selected run data
         run_data = self.runs_data[selected_run_id]
 
         # Update title and description labels
-        self.title_label.value = f"<b>Run ID:</b> {run_data['run_id']} (Status: {run_data['status']})"
-        self.description_label.value += f" {run_data.get('description', 'No description available.')}"
+        self.title_label.value = f"<b>Run Name:</b> {selected_run_id}"
+        self.description_label.value = f"<b>Description:</b> {run_data.get('description', 'No description available.')}"
 
         # Update tags label
-        self.tags_label.value = f"<b>Tags:</b> {', '.join(run_data.get('tags', []))}"
+        tags = run_data.get('tags', [])
+        self.tags_label.value = f"<b>Tags:</b> {', '.join(tags) if tags else 'No tags available'}"
 
         # Display hyperparameters table
-        hyperparameters_df = pd.DataFrame(run_data['hyperparameters'].items(), columns=['Hyperparameter', 'Value'])
+        hyperparameters_df = pd.DataFrame(run_data.get('hyperparameters', {}).items(), columns=['Hyperparameter', 'Value'])
 
         with self.hyperparameters_table:
             clear_output(wait=True)
             display(HTML(hyperparameters_df.to_html(index=False)))
 
         # Display metrics table
-        metrics_df = pd.DataFrame(run_data['metrics'].items(), columns=['Metric', 'Value'])
+        metrics_df = pd.DataFrame(run_data.get('metrics', {}).items(), columns=['Metric', 'Value'])
 
         with self.metrics_table:
             clear_output(wait=True)
@@ -214,51 +221,9 @@ class RunView:
         # Display artifacts (assuming they are image URLs)
         with self.artifacts_display:
             clear_output(wait=True)
-            if 'artifacts' in run_data and run_data['artifacts']:
-                for artifact in run_data['artifacts']:
+            artifacts = run_data.get('artifacts', [])
+            if artifacts:
+                for artifact in artifacts:
                     display(HTML(f"<img src='{artifact}' style='width: 200px; height: auto; margin: 5px;'>"))
             else:
-                print("No artifacts available for this run.")
-
-
-# Sample data for runs with titles, descriptions, tags, hyperparameters, metrics, and artifacts
-runs_data = {
-    "Run 1": {
-        "run_id": "1",
-        "status": "completed",
-        "description": "This run focuses on optimizing the model for lung cancer detection.",
-        "tags": ["lung cancer", "AI", "detection"],
-        "hyperparameters": {"learning_rate": 0.01, "batch_size": 32},
-        "metrics": {"accuracy": 0.95, "loss": 0.05},
-        "artifacts": ["https://example.com/image1.png", "https://example.com/image2.png"]
-    },
-    "Run 2": {
-        "run_id": "2",
-        "status": "failed",
-        "description": "This run encountered issues with data preprocessing.",
-        "tags": ["lung cancer", "data issue"],
-        "hyperparameters": {"learning_rate": 0.001, "batch_size": 64},
-        "metrics": {"accuracy": 0.80, "loss": 0.2},
-        "artifacts": ["https://example.com/image3.png"]
-    },
-    "Run 3": {
-        "run_id": "3",
-        "status": "in progress",
-        "description": "Ongoing work to improve model accuracy.",
-        "tags": ["lung cancer", "in progress"],
-        "hyperparameters": {"learning_rate": 0.1, "batch_size": 128},
-        "metrics": {"accuracy": 0.90, "loss": 0.1},
-    },
-    "Run 4": {
-        "run_id": "4",
-        "status": "completed",
-        "description": "Final run with optimized parameters.",
-        "tags": ["lung cancer", "final"],
-        "hyperparameters": {"learning_rate": 0.05, "batch_size": 16},
-        "metrics": {"accuracy": 0.98, "loss": 0.02},
-    }
-}
-
-# Create an instance of RunView with the sample data
-run_view_manager = RunView(runs_data)
-
+                display(HTML("<p>No artifacts available for this run.</p>"))

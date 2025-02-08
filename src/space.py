@@ -1,4 +1,5 @@
 import src.space_manager as sm
+import src.ui as ui
 import pandas as pd
 
 manager = sm.SpaceManager()
@@ -570,7 +571,8 @@ def get_best_run(experiment_name=None, metric_name="mae", objective="minimize"):
         if not metrics:
             print(f"No metrics found for run '{run_id}', skipping.")
             continue
-        print(run_id,metrics)
+
+        metric_value = 0
         for metric in metrics:
             if metric_name in list(metric.values()):
                 metric_value = float(metric['value'])
@@ -596,11 +598,88 @@ def get_best_run(experiment_name=None, metric_name="mae", objective="minimize"):
     # Convert the best run data into a DataFrame and return
     return pd.DataFrame([best_run])
 
-# def get_tracked_data():
-#     experiments_info = list_experiments()
-#     tracked_data = {}
-#     for info in experiments_info:
-#         exp_name = info["name"]
-#         runs = list_runs(experiment_name = 'experiment 1')
-#         tracked_data[exp_name] = runs
-#     print(tracked_data)
+
+
+def extract_named_items(data, item_type):
+    """
+    Extracts items with "name" and "value" (or similar) from a dictionary.
+
+    Args:
+        data: The input dictionary.
+        item_type: The key where the list of items is stored (e.g., "hyperparameters", "metrics").
+
+    Returns:
+        A dictionary where keys are the "name" values and values are the
+        corresponding "value" values. Returns an empty dictionary if the
+        specified item_type is not found or if the data is not in the
+        expected format.
+    """
+    extracted_items = {}
+
+    if isinstance(data, dict) and item_type in data:
+        items_list = data[item_type]
+
+        if isinstance(items_list, list):  # Check if it's a list
+            for item in items_list:
+                if isinstance(item, dict) and "name" in item and "value" in item:
+                    name = item["name"]
+                    value = item["value"]
+                    extracted_items[name] = round(value, 2)
+                # Handle cases where "name" or "value" might be missing
+                elif isinstance(item, dict):
+                    print(f"Warning: Item in '{item_type}' is missing 'name' or 'value': {item}")
+        else:
+            print(f"Warning: '{item_type}' is not a list in the data.")
+    else:
+        print(f"Warning: Data is not a dictionary or '{item_type}' key not found.")
+
+    return extracted_items
+
+
+
+def get_experiment_data():
+    """
+    Retrieves and structures experiment data, including runs, hyperparameters, and metrics.
+
+    Args:
+        space: An object representing the experiment space (e.g., a client or API wrapper).
+               This object should provide methods like list_experiments, list_runs, and get_runs.
+
+    Returns:
+        A dictionary where keys are experiment names and values are dictionaries containing
+        experiment details and a list of runs. Each run includes hyperparameters and metrics.
+        Returns an empty dictionary if no experiments are found or if an error occurs.
+    """
+    try:
+        experiment_list = list_experiments()
+        experiment_data_dict = {}
+
+        for experiment in experiment_list:
+            experiment_name = experiment["name"]
+            experiment_data_dict[experiment_name] = experiment
+            experiment_data_dict[experiment_name]["runs"] = []
+
+            run_list = list_runs(experiment_name=experiment_name)
+            for run in run_list:
+                tracked_run_data = get_runs(experiment_name=experiment_name)
+                if run["name"] in tracked_run_data: #Check if run name exists in tracked data.
+                    run["hyperparameters"] = extract_named_items(tracked_run_data[run["name"]], item_type="hyperparameters")
+                    run["metrics"] = extract_named_items(tracked_run_data[run["name"]], item_type="metrics")
+                    experiment_data_dict[experiment_name]["runs"].append(run)
+                else:
+                    print(f"Warning: Run '{run['name']}' not found in tracked data for experiment '{experiment_name}'. Skipping.")
+
+
+        return experiment_data_dict
+    except Exception as e:
+        print(f"Error retrieving experiment data: {e}")
+        return {}
+
+
+def show(experiment_name=None):
+    experiments_data = get_experiment_data()
+    if not experiment_name:
+        ui.ExperimentView(experiments_data)
+    else:
+        runs = {run['name']: {k: v for k, v in run.items() if k != 'name'} for run in experiments_data[experiment_name]["runs"]}
+        ui.RunView(runs)
